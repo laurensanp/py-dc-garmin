@@ -1,0 +1,19 @@
+logging
+dotenv
+pyttsx3==2.99
+gtts==2.5.4
+playsound==1.2.2
+pygame==2.6.1
+python-dotenv==1.1.1
+speechrecognition==3.14.3
+sounddevice==0.5.2
+vosk==0.3.45
+langchain_core==0.3.72
+langchain_ollama==0.3.6
+langchain==0.3.27
+pyaudio
+discord
+PyNaCl
+ffmpeg-python
+# ffmpeg and ollama with qwen3:1.7b is required
+scipy
