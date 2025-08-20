@@ -38,8 +38,6 @@ Dieses Projekt implementiert einen **Discord-Bot**, der:
 
 ---
 
----
-
 ## 🔑 .env Konfiguration
 
 Lege im Projektordner eine `.env` Datei mit folgendem Inhalt an:
