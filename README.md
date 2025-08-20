@@ -41,7 +41,6 @@ pip install -r requirements.txt
   - **FFmpeg** installiert und über Umgebungsvariable `FFMPEG_PATH` erreichbar - siehe `https://ffmpeg.org/`
   - **Ollama** installiert und lauffähig mit `qwen3:1.7b` (aber nach Wunsch, kann man auch ein andere Model nehmen) - siehe `https://ollama.com/`
 
----
 
 ---
 
