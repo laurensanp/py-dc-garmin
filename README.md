@@ -21,25 +21,26 @@ Dieses Projekt implementiert einen **Discord-Bot**, der:
 pip install -r requirements.txt
 ```
 
-    - `logging`
-    - `dotenv`
-    - `pyttsx3==2.99`
-    - `gtts==2.5.4`
-    - `playsound==1.2.2`
-    - `pygame==2.6.1`
-    - `python-dotenv==1.1.1`
-    - `speechrecognition==3.14.3`
-    - `sounddevice==0.5.2`
-    - `vosk==0.3.45`
-    - `langchain_core==0.3.72`
-    - `langchain_ollama==0.3.6`
-    - `langchain==0.3.27`
-    - `pyaudio`
-    - `discord`
-    - `PyNaCl`
-    - `ffmpeg-python`
-    - **FFmpeg** installiert und über Umgebungsvariable `FFMPEG_PATH` erreichbar - siehe `https://ffmpeg.org/`
-    - **Ollama** installiert und lauffähig mit `qwen3:1.7b` (aber nach Wunsch, kann man auch ein andere Model nehmen) - siehe `https://ollama.com/`
+  - `logging`
+  - `dotenv`
+  - `pyttsx3==2.99`
+  - `gtts==2.5.4`
+  - `playsound==1.2.2`
+  - `pygame==2.6.1`
+  - `python-dotenv==1.1.1`
+  - `speechrecognition==3.14.3`
+  - `sounddevice==0.5.2`
+  - `vosk==0.3.45`
+  - `langchain_core==0.3.72`
+  - `langchain_ollama==0.3.6`
+  - `langchain==0.3.27`
+  - `pyaudio`
+  - `discord`
+  - `PyNaCl`
+  - `ffmpeg-python`
+  - **FFmpeg** installiert und über Umgebungsvariable `FFMPEG_PATH` erreichbar - siehe `https://ffmpeg.org/`
+  - **Ollama** installiert und lauffähig mit `qwen3:1.7b` (aber nach Wunsch, kann man auch ein andere Model nehmen) - siehe `https://ollama.com/`
+
 
 ---
 
