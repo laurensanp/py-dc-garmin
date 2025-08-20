@@ -15,7 +15,12 @@ Dieses Projekt implementiert einen **Discord-Bot**, der:
 ## ⚙️ Voraussetzungen
 
 - **Python 3.10+**
-- Installierte Pakete (siehe `requirements.txt`):
+- Installierte Pakete (siehe `requirements.txt`)
+
+```bash
+pip install -r requirements.txt
+```
+
     - `logging`
     - `dotenv`
     - `pyttsx3==2.99`
