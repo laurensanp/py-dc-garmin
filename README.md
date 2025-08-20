@@ -33,8 +33,8 @@ Dieses Projekt implementiert einen **Discord-Bot**, der:
     - `discord`
     - `PyNaCl`
     - `ffmpeg-python`
-    - **FFmpeg** installiert und über Umgebungsvariable `FFMPEG_PATH` erreichbar
-    - **Ollama** installiert und lauffähig ([Ollama](https://ollama.ai))
+    - **FFmpeg** installiert und über Umgebungsvariable `FFMPEG_PATH` erreichbar - siehe `https://ffmpeg.org/`
+    - **Ollama** installiert und lauffähig mit qwen3:1.7b - siehe `https://ollama.com/`
 
 ---
 
