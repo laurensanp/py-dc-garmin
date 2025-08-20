@@ -67,15 +67,15 @@ def speak_text(text: str):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
             temp_filename = fp.name
         tts.save(temp_filename)
-        if voice_client and voice_client.is_connected():
-            audio_source = discord.FFmpegPCMAudio(temp_filename, executable=FFMPEG_PATH)
-            voice_client.play(
-                audio_source,
-                after=lambda e: os.remove(temp_filename) if e is None else logging.error("Fehler beim Abspielen.", extra={'code': 301})
-            )
-        else:
+        if not (voice_client and voice_client.is_connected()):
             playsound(temp_filename)
             os.remove(temp_filename)
+            return
+        audio_source = discord.FFmpegPCMAudio(temp_filename, executable=FFMPEG_PATH)
+        voice_client.play(
+            audio_source,
+            after=lambda e: os.remove(temp_filename) if e is None else logging.error("Fehler beim Abspielen.", extra={'code': 301})
+        )
     except Exception as e:
         logging.error(f"{e}", extra={'code': 301})
 
@@ -136,8 +136,9 @@ async def transcribe_discord_audio(recognizer_obj, audio_file):
     try:
         return recognizer_obj.recognize_google(audio, language=LANGUAGE)
     except sr.UnknownValueError:
-        if not no_speech:
-            logging.warning("Keine Sprache erkannt.", extra={'code': 304})
+        if no_speech:
+            return None
+        logging.warning("Keine Sprache erkannt.", extra={'code': 304})
         no_speech = True
         return None
     except sr.RequestError as e:
@@ -181,87 +182,104 @@ def disc():
         @tasks.loop(seconds=DISCORD_AUDIO_LOOP_SECONDS)
         async def process_discord_audio(self):
             global voice_client, no_speech
-            if self.voice_recorder and self.voice_recorder.audio_data:
-                audio_file = await self.voice_recorder.save()
-                transcript = await transcribe_discord_audio(recognizer, audio_file)
-                os.remove(audio_file)
-                self.voice_recorder.audio_data.clear()
 
-                if transcript:
-                    no_speech = False
-                    if not self.discord_conversation_mode:
-                        lower_transcript = transcript.lower()
-                        lower_trigger_word = TRIGGER_WORD.lower()
-                        if lower_trigger_word in lower_transcript:
-                            logging.info(f"Trigger erkannt: {transcript}", extra={'code': 210})
-                            if voice_client and voice_client.is_connected():
-                                audio_source = discord.FFmpegPCMAudio(AUDIO_FILE, executable=FFMPEG_PATH)
-                                voice_client.play(audio_source, after=lambda e: logging.error(f"{e}", extra={'code': 305}) if e else None)
-                            self.garmin_conversation_mode = False
-                            self.discord_conversation_mode = True
-                            self.last_discord_interaction_time = time.time()
-                        elif "garmin" in lower_transcript:
-                            logging.info("Befehl erkannt: Okay Garmin", extra={'code': 221})
-                            audio_source = discord.FFmpegPCMAudio("source/dup.mp3", executable=FFMPEG_PATH)
-                            voice_client.play(audio_source, after=lambda e: logging.error(f"{e}", extra={'code': 306}) if e else None)
-                            self.last_discord_interaction_time = time.time()
-                            self.discord_conversation_mode = False
-                            self.garmin_conversation_mode = True
-                        elif "video speichern" in lower_transcript and self.garmin_conversation_mode:
-                            logging.info("Befehl erkannt: Video speichern", extra={'code': 220})
-                            try:
-                                saved_file = await self.voice_recorder.save_last_30_seconds()
-                                self.last_saved_audio_path = saved_file
-                                logging.info(f"Letzte 30 Sekunden als '{saved_file}' gespeichert.", extra={'code': 222})
-                                audio_source = discord.FFmpegPCMAudio("source/dupdup.mp3", executable=FFMPEG_PATH)
-                                voice_client.play(audio_source, after=lambda e: logging.error(f"{e}", extra={'code': 306}) if e else None)
-                                try:
-                                    target_channel = self.get_channel(DISCORD_TARGET_CHANNEL_ID)
-                                    if target_channel and isinstance(target_channel, discord.TextChannel):
-                                        audio_file = discord.File(saved_file)
-                                        await target_channel.send(file=audio_file)
-                                        logging.info(f"Audiodatei '{saved_file}' automatisch an Kanal {target_channel} gesendet.", extra={'code': 273})
-                                    else:
-                                        logging.warning(f"Zielkanal {target_channel} nicht gefunden oder ist kein Textkanal.", extra={'code': 274})
-                                        speak_text("Der Zielkanal für das Speichern der Audiodatei konnte nicht gefunden werden.")
-                                except Exception as e:
-                                    logging.error(f"Fehler beim automatischen Senden der Datei an Kanal {target_channel}: {e}", extra={'code': 313})
-                                    speak_text("Es gab einen Fehler beim automatischen Senden der Audiodatei.")
-                            except Exception as e:
-                                logging.error(f"Fehler beim Speichern der letzten 30 Sekunden: {e}", extra={'code': 309})
-                                speak_text("Es gab einen Fehler beim Speichern der letzten 30 Sekunden.")
-                            self.last_discord_interaction_time = time.time()
-                            self.discord_conversation_mode = False
-                            self.garmin_conversation_mode = False
-                        elif "lied" in lower_transcript and self.garmin_conversation_mode:
-                            logging.info("Befehl erkannt: Lied", extra={'code': 223})
-                            audio_source = discord.FFmpegPCMAudio("source/ssong.mp3", executable=FFMPEG_PATH)
-                            voice_client.play(audio_source, after=lambda e: logging.error(f"{e}", extra={'code': 306}) if e else None)
-                            self.last_discord_interaction_time = time.time()
-                            self.discord_conversation_mode = False
-                            self.garmin_conversation_mode = False
-                        else:
-                            logging.info(f"Transkript (wartend): {transcript}", extra={'code': 211})
-                    else:
-                        logging.info(f"Eingabe: {transcript}", extra={'code': 230})
-                        response = executor.invoke({"input": transcript})
-                        content = response.get("output", str(response))
-                        logging.info(f"Antwort: {content}", extra={'code': 231})
-                        speak_text(content)
-                        self.discord_conversation_mode = True
+            if not (self.voice_recorder and self.voice_recorder.audio_data):
+                return
+
+            audio_file = await self.voice_recorder.save()
+            transcript = await transcribe_discord_audio(recognizer, audio_file)
+            os.remove(audio_file)
+            self.voice_recorder.audio_data.clear()
+
+            if not transcript:
+                return
+
+            no_speech = False
+
+            if self.discord_conversation_mode:
+                logging.info(f"Eingabe: {transcript}", extra={'code': 230})
+                response = executor.invoke({"input": transcript})
+                content = response.get("output", str(response))
+                logging.info(f"Antwort: {content}", extra={'code': 231})
+                speak_text(content)
+                self.discord_conversation_mode = True
+                return
+
+            lower_transcript = transcript.lower()
+            lower_trigger_word = TRIGGER_WORD.lower()
+
+            if lower_trigger_word in lower_transcript:
+                logging.info(f"Trigger erkannt: {transcript}", extra={'code': 210})
+                if voice_client and voice_client.is_connected():
+                    audio_source = discord.FFmpegPCMAudio(AUDIO_FILE, executable=FFMPEG_PATH)
+                    voice_client.play(audio_source, after=lambda e: logging.error(f"{e}", extra={'code': 305}) if e else None)
+                self.garmin_conversation_mode = False
+                self.discord_conversation_mode = True
+                self.last_discord_interaction_time = time.time()
+                return
+
+            if "garmin" in lower_transcript:
+                logging.info("Befehl erkannt: Okay Garmin", extra={'code': 221})
+                audio_source = discord.FFmpegPCMAudio("source/dup.mp3", executable=FFMPEG_PATH)
+                voice_client.play(audio_source, after=lambda e: logging.error(f"{e}", extra={'code': 306}) if e else None)
+                self.last_discord_interaction_time = time.time()
+                self.discord_conversation_mode = False
+                self.garmin_conversation_mode = True
+                return
+
+            if "video speichern" in lower_transcript and self.garmin_conversation_mode:
+                logging.info("Befehl erkannt: Video speichern", extra={'code': 220})
+                try:
+                    saved_file = await self.voice_recorder.save_last_30_seconds()
+                    self.last_saved_audio_path = saved_file
+                    logging.info(f"Letzte 30 Sekunden als '{saved_file}' gespeichert.", extra={'code': 222})
+                    audio_source = discord.FFmpegPCMAudio("source/dupdup.mp3", executable=FFMPEG_PATH)
+                    voice_client.play(audio_source, after=lambda e: logging.error(f"{e}", extra={'code': 306}) if e else None)
+                    try:
+                        target_channel = self.get_channel(DISCORD_TARGET_CHANNEL_ID)
+                        if not (target_channel and isinstance(target_channel, discord.TextChannel)):
+                            logging.warning(f"Zielkanal {target_channel} nicht gefunden oder ist kein Textkanal.", extra={'code': 274})
+                            speak_text("Der Zielkanal für das Speichern der Audiodatei konnte nicht gefunden werden.")
+                            return
+                        audio_file = discord.File(saved_file)
+                        await target_channel.send(file=audio_file)
+                        logging.info(f"Audiodatei '{saved_file}' automatisch an Kanal {target_channel} gesendet.", extra={'code': 273})
+                    except Exception as e:
+                        logging.error(f"Fehler beim automatischen Senden der Datei an Kanal {target_channel}: {e}", extra={'code': 313})
+                        speak_text("Es gab einen Fehler beim automatischen Senden der Audiodatei.")
+                except Exception as e:
+                    logging.error(f"Fehler beim Speichern der letzten 30 Sekunden: {e}", extra={'code': 309})
+                    speak_text("Es gab einen Fehler beim Speichern der letzten 30 Sekunden.")
+                self.last_discord_interaction_time = time.time()
+                self.discord_conversation_mode = False
+                self.garmin_conversation_mode = False
+                return
+
+            if "lied" in lower_transcript and self.garmin_conversation_mode:
+                logging.info("Befehl erkannt: Lied", extra={'code': 223})
+                audio_source = discord.FFmpegPCMAudio("source/ssong.mp3", executable=FFMPEG_PATH)
+                voice_client.play(audio_source, after=lambda e: logging.error(f"{e}", extra={'code': 306}) if e else None)
+                self.last_discord_interaction_time = time.time()
+                self.discord_conversation_mode = False
+                self.garmin_conversation_mode = False
+                return
+
+            logging.info(f"Transkript (wartend): {transcript}", extra={'code': 211})
 
             timeout_reached = (
                 self.last_discord_interaction_time
                 and (time.time() - self.last_discord_interaction_time > CONVERSATION_TIMEOUT)
             )
 
-            if timeout_reached:
-                if self.discord_conversation_mode:
-                    logging.info("Timeout erreicht, Gespräch beendet.", extra={'code': 240})
-                    self.discord_conversation_mode = False
-                if self.garmin_conversation_mode:
-                    logging.info("Timeout erreicht, Garmin beendet.", extra={'code': 240})
-                    self.garmin_conversation_mode = False
+            if not timeout_reached:
+                return
+
+            if self.discord_conversation_mode:
+                logging.info("Timeout erreicht, Gespräch beendet.", extra={'code': 240})
+                self.discord_conversation_mode = False
+            if self.garmin_conversation_mode:
+                logging.info("Timeout erreicht, Garmin beendet.", extra={'code': 240})
+                self.garmin_conversation_mode = False
 
         @tasks.loop(seconds=1.5)
         async def monitor_voice_channels(self):
@@ -284,18 +302,19 @@ def disc():
                         break
                 if target_channel:
                     break
-            if target_channel:
-                try:
-                    voice_client = await target_channel.connect(cls=voice_recv.VoiceRecvClient)
-                    self.voice_recorder = VoiceRecorder(self.saves_dir)
-                    voice_client.listen(self.voice_recorder)
-                    if not self.process_discord_audio.is_running():
-                        self.process_discord_audio.start()
-                    logging.info(f"Voice-Channel beigetreten: {target_channel.name}", extra={'code': 254})
-                    self.joined_voice_channel_once = True
-                    self.monitor_voice_channels.cancel()
-                except Exception as e:
-                    logging.error(f"{e}", extra={'code': 307})
+            if not target_channel:
+                return
+            try:
+                voice_client = await target_channel.connect(cls=voice_recv.VoiceRecvClient)
+                self.voice_recorder = VoiceRecorder(self.saves_dir)
+                voice_client.listen(self.voice_recorder)
+                if not self.process_discord_audio.is_running():
+                    self.process_discord_audio.start()
+                logging.info(f"Voice-Channel beigetreten: {target_channel.name}", extra={'code': 254})
+                self.joined_voice_channel_once = True
+                self.monitor_voice_channels.cancel()
+            except Exception as e:
+                logging.error(f"{e}", extra={'code': 307})
 
     client = CustomClient()
     client.run(DISCORD_BOT_TOKEN, log_handler=None)
